@@ -64,6 +64,15 @@ export const seedDatabaseWithEntry = async (
   return;
 };
 
+export const createCalendarEntry = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  res.sendStatus(201);
+  return;
+};
+
 export const getCalendarEntries = async (
   req: Request,
   res: Response,

@@ -25,6 +25,14 @@ describe("POST /seedDatabase", () => {
   });
 });
 
+describe("POST /entries", () => {
+  it.only("adds an item to the database", async () => {
+    // update post request to include a data body
+    await supertest(app).post("/entries").expect(201);
+    // grab the most recent entry in the DB and assert that the lastest entry matches to body that we sent
+  });
+});
+
 describe("GET /entries", () => {
   it("returns the entries that exist in the database", async () => {
     const today = new Date();
