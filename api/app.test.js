@@ -212,7 +212,7 @@ describe("GET /entries?start=<start-time>&end=<end-time>", () => {
     expect(response.body.length).toEqual(8);
   });
 
-  // TODO AP_EB figure out why this is failing
+  // TODO: Figure out why this is failing
   it.skip("catches and returns an error from CalendarEntry.find", async () => {
     const findMock = jest
       .spyOn(CalendarEntry, "find")
