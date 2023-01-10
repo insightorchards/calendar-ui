@@ -14,15 +14,15 @@ description
 allDay
 startTimeUtc
 endTimeUtc
-duration
+recurrenceEndsUtc
 recurring
 recurrencePattern
 
-EventException: (???)
+EntryException: (???)
 id
 deleted: boolean
 modified: boolean
-eventId
+entryId
 creatorId
 title
 description

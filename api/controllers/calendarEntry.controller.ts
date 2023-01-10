@@ -5,34 +5,33 @@ import {
   getMillisecondsBetween,
   addMillisecondsToDate,
 } from "../lib/dateHelpers";
-import mongoose from "mongoose";
-import { RRule } from "rrule";
+import { RRule, RRuleSet, rrulestr } from "rrule";
 
 const FREQUENCY_MAPPING = {
   monthly: RRule.MONTHLY,
   weekly: RRule.WEEKLY,
 };
 
-type CalendarEntry =
-  | NonRecurringEntry
-  | RecurringParentEntry
-  | RecurringChildEntry;
+// type CalendarEntry =
+//   | NonRecurringEntry
+//   | RecurringParentEntry
+//   | RecurringChildEntry;
 
-type NonRecurringEntry = {
-  id: string;
-  eventId: string;
-  creatorId: string;
-  title: string;
-  description?: string;
-  allDay: boolean;
-  recurring: false;
-  startTimeUtc: Date;
-  endTimeUtc: Date;
-  createdAt: Date;
-  updatedAt: Date;
-};
+// type NonRecurringEntry = {
+//   id: string;
+//   eventId: string;
+//   creatorId: string;
+//   title: string;
+//   description?: string;
+//   allDay: boolean;
+//   recurring: false;
+//   startTimeUtc: Date;
+//   endTimeUtc: Date;
+//   createdAt: Date;
+//   updatedAt: Date;
+// };
 
-type RecurringParentEntry = {
+type RecurringEntry = {
   id: string;
   eventId: string;
   creatorId: string;
@@ -43,47 +42,68 @@ type RecurringParentEntry = {
   startTimeUtc: Date;
   endTimeUtc: Date;
   frequency: string;
-  recurrenceBegins: Date;
-  recurrenceEnds: Date;
+  recurrenceEndsUtc: Date;
+  recurrencePattern: string;
   createdAt: Date;
   updatedAt: Date;
 };
 
-type RecurringChildEntry = {
-  id: string;
-  eventId: string;
-  creatorId: string;
-  title: string;
-  description?: string;
-  allDay: boolean;
-  recurring: boolean;
-  frequency: string;
-  recurrenceBegins: Date;
-  recurrenceEnds: Date;
-  startTimeUtc: Date;
-  endTimeUtc: Date;
-  recurringEventId: mongoose.Schema.Types.ObjectId;
-  createdAt: Date;
-  updatedAt: Date;
+// type RecurringChildEntry = {
+//   id: string;
+//   eventId: string;
+//   creatorId: string;
+//   title: string;
+//   description?: string;
+//   allDay: boolean;
+//   recurring: boolean;
+//   frequency: string;
+//   recurrenceBegins: Date;
+//   recurrenceEnds: Date;
+//   startTimeUtc: Date;
+//   endTimeUtc: Date;
+//   recurringEventId: mongoose.Schema.Types.ObjectId;
+//   createdAt: Date;
+//   updatedAt: Date;
+// };
+
+// const isNonRecurringEntry = (entry) => {
+//   return (entry as NonRecurringEntry).recurring === false;
+// };
+
+const isRecurringEntry = (entry) => {
+  return (entry as RecurringEntry).recurring === true;
 };
 
-const isNonRecurringEntry = (entry) => {
-  return (entry as NonRecurringEntry).recurring === false;
-};
+// // Not currently used but will be used during future features
+// const isRecurringChildEntry = (entry) => {
+//   return (
+//     (entry as RecurringChildEntry).recurring === true &&
+//     (entry as RecurringChildEntry).recurringEventId !== undefined
+//   );
+// };
 
-const isRecurringParentEntry = (entry) => {
-  return (
-    (entry as RecurringParentEntry).recurring === true &&
-    entry.recurringEventId === undefined
-  );
-};
+const expandRecurringEntry = (entry, start, end) => {
+  const duration = getMillisecondsBetween(entry.startTimeUtc, entry.endTimeUtc);
+  const rule = rrulestr(entry.recurrencePattern);
+  const rruleSet = new RRuleSet();
 
-// Not currently used but will be used during future features
-const isRecurringChildEntry = (entry) => {
-  return (
-    (entry as RecurringChildEntry).recurring === true &&
-    (entry as RecurringChildEntry).recurringEventId !== undefined
-  );
+  rruleSet.rrule(rule);
+
+  const recurrences = rruleSet.between(new Date(start), new Date(end));
+  return recurrences.map((date) => {
+    return {
+      eventId: entry.eventId,
+      creatorId: entry.creatorId,
+      title: entry.title,
+      description: entry.description,
+      allDay: entry.allDay,
+      startTimeUtc: date,
+      endTimeUtc: addMillisecondsToDate(date, duration),
+      recurring: true,
+      frequency: entry.frequency,
+      recurrenceEndsUtc: entry.recurrenceEndsUtc,
+    };
+  });
 };
 
 const prepRecurringEvents = (entry) => {
@@ -113,10 +133,6 @@ const prepRecurringEvents = (entry) => {
       recurrenceEnds: entry.recurrenceEnds,
     };
   });
-};
-
-const deleteChildEvents = async (parentEvent) => {
-  await CalendarEntry.deleteMany({ recurringEventId: parentEvent._id });
 };
 
 export const seedDatabaseWithEntry = async (
@@ -161,6 +177,37 @@ export const seedDatabaseWithEntry = async (
   res.sendStatus(201);
 };
 
+export const testRrule = async (
+  _req: Request,
+  res: Response,
+  _next: NextFunction,
+) => {
+  const rule = new RRule({
+    freq: RRule.WEEKLY,
+    byweekday: [RRule.MO, RRule.TU],
+    dtstart: new Date("05 January 2023 14:48 UTC"),
+    until: new Date("29 January 2023 14:48 UTC"),
+  });
+
+  console.log("rule string", rule.toString());
+  console.log("all", rule.all());
+
+  const ruleFromString = rrulestr(rule.toString());
+
+  const rruleSet = new RRuleSet();
+  rruleSet.rrule(ruleFromString);
+  rruleSet.exdate(new Date("2023-01-16T14:48:00.000Z"));
+
+  const match = rruleSet.between(
+    new Date("2023-01-10T14:47:00.000Z"),
+    new Date("2023-01-10T14:49:00.000Z"),
+  );
+
+  console.log({ match });
+  console.log("rruleSet all", rruleSet.all());
+  res.sendStatus(200);
+};
+
 export const createCalendarEntry = async (
   req: Request,
   res: Response,
@@ -168,9 +215,14 @@ export const createCalendarEntry = async (
 ) => {
   try {
     const entry = await CalendarEntry.create(req.body as CalendarEntry);
-    if (isRecurringParentEntry(entry)) {
-      const recurringData = prepRecurringEvents(entry);
-      await CalendarEntry.insertMany(recurringData);
+    if (isRecurringEntry(entry)) {
+      const rule = new RRule({
+        freq: FREQUENCY_MAPPING[entry.frequency],
+        dtstart: entry.startTimeUtc,
+        until: entry.recurrenceEndsUtc,
+      });
+      entry.recurrencePattern = rule.toString();
+      entry.save();
     }
     res.status(201).json(entry);
   } catch (err) {
@@ -180,14 +232,73 @@ export const createCalendarEntry = async (
 };
 
 export const getCalendarEntries = async (
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction,
 ) => {
   try {
-    const entries: CalendarEntry = await CalendarEntry.find();
-    res.status(200).json(entries);
+    const { start, end } = req.query;
+    const nonRecurringEntries: CalendarEntry = await CalendarEntry.find()
+      .where("recurring")
+      .equals(false)
+      .where("startTimeUtc")
+      .gte(start)
+      .where("endTimeUtc")
+      .lte(end);
+
+    const recurringEntriesWithinDateRange: CalendarEntry =
+      await CalendarEntry.find()
+        .where("recurring")
+        .equals(true)
+        .where("startTimeUtc")
+        .gte(start)
+        .where("recurrenceEndsUtc")
+        .lte(end);
+
+    const recurringEntriesBeginsBeforeEndsWithin: CalendarEntry =
+      await CalendarEntry.find()
+        .where("recurring")
+        .equals(true)
+        .where("startTimeUtc")
+        .lt(start)
+        .where("recurrenceEndsUtc")
+        .lte(end);
+
+    const recurringEntriesBeginsWithinEndsAfter: CalendarEntry =
+      await CalendarEntry.find()
+        .where("recurring")
+        .equals(true)
+        .where("startTimeUtc")
+        .gte(start)
+        .where("recurrenceEndsUtc")
+        .gte(end);
+
+    const recurringEntriesBeginsBeforeEndsAfter: CalendarEntry =
+      await CalendarEntry.find()
+        .where("recurring")
+        .equals(true)
+        .where("startTimeUtc")
+        .lt(start)
+        .where("recurrenceEndsUtc")
+        .gt(end);
+
+    const allRecurringEntries = [
+      ...recurringEntriesWithinDateRange,
+      ...recurringEntriesBeginsBeforeEndsWithin,
+      ...recurringEntriesBeginsWithinEndsAfter,
+      ...recurringEntriesBeginsBeforeEndsAfter,
+    ];
+    let allRecurrences = [];
+    allRecurringEntries.forEach((recurringEntry) => {
+      const expandedEntries = expandRecurringEntry(recurringEntry, start, end);
+      allRecurrences.push(expandedEntries);
+    });
+
+    const allEntries = [...nonRecurringEntries, ...allRecurrences.flat()];
+
+    res.status(200).json(allEntries);
   } catch (err) {
+    console.log("Caught an error");
     res.status(400);
     res.send(err);
   }
@@ -216,9 +327,9 @@ export const deleteCalendarEntry = async (
   const { id } = req.params;
   try {
     const entryToDelete = await CalendarEntry.findById(id);
-    if (isRecurringParentEntry(entryToDelete)) {
-      await deleteChildEvents(entryToDelete);
-    }
+    // if (isRecurringParentEntry(entryToDelete)) {
+    //   await deleteChildEvents(entryToDelete);
+    // }
     await CalendarEntry.deleteOne({ _id: id });
     res.sendStatus(200);
   } catch (err) {
@@ -234,32 +345,29 @@ export const updateCalendarEntry = async (
 ) => {
   const { id } = req.params;
   try {
-    const originalEntry = await CalendarEntry.findByIdAndUpdate(
-      id,
-      req.body as CalendarEntry,
-    );
+    const originalEntry = await CalendarEntry.findByIdAndUpdate(id, req.body);
     const updatedEntry = await CalendarEntry.findById(id);
-    if (
-      isNonRecurringEntry(originalEntry) &&
-      isRecurringParentEntry(updatedEntry)
-    ) {
-      const recurringData = prepRecurringEvents(updatedEntry);
-      await CalendarEntry.insertMany(recurringData);
-    }
-    if (
-      isRecurringParentEntry(originalEntry) &&
-      isNonRecurringEntry(updatedEntry)
-    ) {
-      deleteChildEvents(updatedEntry);
-    }
-    if (
-      isRecurringParentEntry(originalEntry) &&
-      isRecurringParentEntry(updatedEntry)
-    ) {
-      deleteChildEvents(updatedEntry);
-      const recurringData = prepRecurringEvents(updatedEntry);
-      await CalendarEntry.insertMany(recurringData);
-    }
+    // if (
+    //   isNonRecurringEntry(originalEntry) &&
+    //   isRecurringParentEntry(updatedEntry)
+    // ) {
+    //   const recurringData = prepRecurringEvents(updatedEntry);
+    //   await CalendarEntry.insertMany(recurringData);
+    // }
+    // if (
+    //   isRecurringParentEntry(originalEntry) &&
+    //   isNonRecurringEntry(updatedEntry)
+    // ) {
+    //   deleteChildEvents(updatedEntry);
+    // }
+    // if (
+    //   isRecurringParentEntry(originalEntry) &&
+    //   isRecurringParentEntry(updatedEntry)
+    // ) {
+    //   deleteChildEvents(updatedEntry);
+    //   const recurringData = prepRecurringEvents(updatedEntry);
+    //   await CalendarEntry.insertMany(recurringData);
+    // }
     res.status(200).json(updatedEntry);
   } catch (err) {
     res.status(400);

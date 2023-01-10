@@ -34,33 +34,41 @@ const calendarEntrySchema = new mongoose.Schema(
       type: Boolean,
       required: true,
     },
-    recurringEventId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "CalendarEntry",
+    recurrenceEndsUtc: {
+      type: Date,
+      required: false,
+    },
+    recurrencePattern: {
+      type: String,
       required: false,
     },
     frequency: {
       type: String,
       required: false,
     },
-    recurrenceBegins: {
-      type: Date,
-      required: false,
-    },
-    recurrenceEnds: {
-      type: Date,
-      required: false,
-    },
+    // recurringEventId: {
+    //   type: mongoose.Schema.Types.ObjectId,
+    //   ref: "CalendarEntry",
+    //   required: false,
+    // },
+    // recurrenceBegins: {
+    //   type: Date,
+    //   required: false,
+    // },
+    // recurrenceEnds: {
+    //   type: Date,
+    //   required: false,
+    // },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const CalendarEntry = mongoose.model(
   "CalendarEntry",
   calendarEntrySchema,
-  "calendarEntries"
+  "calendarEntries",
 );
 
 module.exports = { CalendarEntry };
