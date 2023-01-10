@@ -26,12 +26,6 @@ describe("POST /seedDatabase", () => {
   });
 });
 
-// describe("POST /testRrule", () => {
-//   it("testing Rrule", async () => {
-//     await supertest(app).post("/testRrule").expect(200);
-//   });
-// });
-
 describe("POST /entries", () => {
   it("adds an item to the database", async () => {
     const startTime = new Date();

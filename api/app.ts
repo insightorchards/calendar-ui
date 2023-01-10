@@ -8,7 +8,6 @@ import {
   getCalendarEntry,
   seedDatabaseWithEntry,
   updateCalendarEntry,
-  testRrule,
 } from "./controllers/calendarEntry.controller";
 import * as dotenv from "dotenv";
 
@@ -28,7 +27,6 @@ app.get("/entries/:id", getCalendarEntry);
 app.patch("/entries/:id", updateCalendarEntry);
 app.delete("/entries/:id", deleteCalendarEntry);
 app.post("/seedDatabase", seedDatabaseWithEntry);
-app.post("/testRrule", testRrule);
 
 const start = async () => {
   try {

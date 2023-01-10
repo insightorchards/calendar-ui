@@ -121,37 +121,6 @@ export const seedDatabaseWithEntry = async (
   res.sendStatus(201);
 };
 
-export const testRrule = async (
-  _req: Request,
-  res: Response,
-  _next: NextFunction,
-) => {
-  const rule = new RRule({
-    freq: RRule.WEEKLY,
-    byweekday: [RRule.MO, RRule.TU],
-    dtstart: new Date("05 January 2023 14:48 UTC"),
-    until: new Date("29 January 2023 14:48 UTC"),
-  });
-
-  console.log("rule string", rule.toString());
-  console.log("all", rule.all());
-
-  const ruleFromString = rrulestr(rule.toString());
-
-  const rruleSet = new RRuleSet();
-  rruleSet.rrule(ruleFromString);
-  rruleSet.exdate(new Date("2023-01-16T14:48:00.000Z"));
-
-  const match = rruleSet.between(
-    new Date("2023-01-10T14:47:00.000Z"),
-    new Date("2023-01-10T14:49:00.000Z"),
-  );
-
-  console.log({ match });
-  console.log("rruleSet all", rruleSet.all());
-  res.sendStatus(200);
-};
-
 export const createCalendarEntry = async (
   req: Request,
   res: Response,
