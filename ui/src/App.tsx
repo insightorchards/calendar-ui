@@ -1,6 +1,6 @@
 import EventForm from "./EventForm";
 import React, { MouseEvent, useEffect } from "react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import FullCalendar, {
   EventClickArg,
   EventSourceInput,
@@ -99,6 +99,13 @@ const App = () => {
   const [modalEndTime, setModalEndTime] = useState<string>(DEFAULT_END_TIME);
   const [modalAllDay, setModalAllDay] = useState<boolean>(false);
   const [apiError, setApiError] = useState<boolean>(false);
+  const [rangeStart, setRangeStart] = useState<string>("");
+  const [rangeEnd, setRangeEnd] = useState<string>("");
+
+  const loadEventsForDateRange = (e: any) => {
+    setRangeStart(new Date(e.startStr).toISOString());
+    setRangeEnd(new Date(e.endStr).toISOString());
+  };
 
   const flashApiErrorMessage = () => {
     setApiError(true);
@@ -106,14 +113,14 @@ const App = () => {
   };
 
   useEffect(() => {
-    getEntries()
+    getEntries(rangeStart, rangeEnd)
       .then((entries) => {
         setEvents(entries);
       })
       .catch(() => {
         flashApiErrorMessage();
       });
-  }, []);
+  }, [rangeStart, rangeEnd]);
 
   const handleCreateEntry = async ({
     title,
@@ -148,7 +155,7 @@ const App = () => {
     }).catch(() => {
       flashApiErrorMessage();
     });
-    getEntries()
+    getEntries(rangeStart, rangeEnd)
       .then((entries) => {
         setEvents(entries);
         setShowOverlay(false);
@@ -181,7 +188,7 @@ const App = () => {
     e.preventDefault();
     deleteEntry(displayedEventData._id!)
       .then(() => {
-        getEntries().then((entries) => {
+        getEntries(rangeStart, rangeEnd).then((entries) => {
           setEvents(entries);
           setShowOverlay(false);
         });
@@ -234,7 +241,7 @@ const App = () => {
     })
       .then(() => {
         getEntryDetails(entryId);
-        getEntries().then((entries) => {
+        getEntries(rangeStart, rangeEnd).then((entries) => {
           setEvents(entries);
         });
       })
@@ -308,6 +315,9 @@ const App = () => {
                 }}
                 selectMirror={true}
                 height="100vh"
+                datesSet={(e) => {
+                  loadEventsForDateRange(e);
+                }}
                 eventDataTransform={addDayToAllDayEvent}
               />
             </div>
