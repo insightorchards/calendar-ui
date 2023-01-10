@@ -7,13 +7,11 @@ import FullCalendar, {
 } from "@fullcalendar/react";
 import {
   formatDate,
-  getDateTimeString,
-  formatTime,
   modalDateFormat,
   addDayToAllDayEvent,
-  formatDateMinusOneDay,
   oneYearLater,
-  padNumberWith0Zero,
+  dateMinusOneDay,
+  getDateTimeString,
 } from "./lib";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -77,13 +75,13 @@ interface FormEntryProps {
 }
 
 const App = () => {
-  const currentHour: number = new Date().getHours();
+  const datePlusHours: Function = (date: Date, hours: number): Date => {
+    date.setHours(date.getHours() + hours);
+    return date;
+  };
 
-  const DEFAULT_START_TIME: string = `${padNumberWith0Zero(
-    currentHour + 1,
-  )}:00`;
-  const DEFAULT_END_TIME: string = `${padNumberWith0Zero(currentHour + 2)}:00`;
-  const DEFAULT_DATE = formatDate(new Date());
+  const DEFAULT_START = datePlusHours(new Date(), 1).toISOString();
+  const DEFAULT_END = datePlusHours(new Date(), 2).toISOString();
 
   const [events, setEvents] = useState<EventSourceInput>([]);
   const [displayedEventData, setDisplayedEventData] = useState(
@@ -92,11 +90,10 @@ const App = () => {
   const [showOverlay, setShowOverlay] = useState<boolean>(false);
   const [inEditMode, setInEditMode] = useState<boolean>(false);
   const [inCreateMode, setInCreateMode] = useState<boolean>(false);
-  const [modalStartDate, setModalStartDate] = useState<string>("");
-  const [modalEndDate, setModalEndDate] = useState<string>("");
-  const [modalStartTime, setModalStartTime] =
-    useState<string>(DEFAULT_START_TIME);
-  const [modalEndTime, setModalEndTime] = useState<string>(DEFAULT_END_TIME);
+
+  const [modalStart, setModalStart] = useState<string>(DEFAULT_START);
+  const [modalEnd, setModalEnd] = useState<string>(DEFAULT_END);
+
   const [modalAllDay, setModalAllDay] = useState<boolean>(false);
   const [apiError, setApiError] = useState<boolean>(false);
 
@@ -264,10 +261,8 @@ const App = () => {
                     size="lg"
                     icon={<AddIcon boxSize={7} w={7} h={7} />}
                     onClick={() => {
-                      setModalStartDate(DEFAULT_DATE);
-                      setModalEndDate(DEFAULT_DATE);
-                      setModalStartTime(DEFAULT_START_TIME);
-                      setModalEndTime(DEFAULT_END_TIME);
+                      setModalStart(DEFAULT_START);
+                      setModalEnd(DEFAULT_END);
                       setInCreateMode(true);
                       setShowOverlay(true);
                     }}
@@ -292,16 +287,13 @@ const App = () => {
                 eventClick={openModal}
                 select={({ start, end, allDay }) => {
                   setModalAllDay(allDay);
+                  setModalStart(start.toISOString());
 
-                  setModalStartDate(formatDate(start));
                   if (allDay) {
-                    setModalEndDate(formatDateMinusOneDay(end));
+                    setModalEnd(dateMinusOneDay(end).toISOString());
                   } else {
-                    setModalEndDate(formatDate(end));
+                    setModalEnd(end.toISOString());
                   }
-
-                  setModalStartTime(formatTime(start.toUTCString()));
-                  setModalEndTime(formatTime(end.toUTCString()));
 
                   setInCreateMode(true);
                   setShowOverlay(true);
@@ -354,16 +346,8 @@ const App = () => {
                   <EventForm
                     initialTitle={displayedEventData.title}
                     initialDescription={displayedEventData.description}
-                    initialStartDate={formatDate(
-                      new Date(displayedEventData.startTimeUtc),
-                    )}
-                    initialEndDate={formatDate(
-                      new Date(displayedEventData.endTimeUtc),
-                    )}
-                    initialStartTime={formatTime(
-                      displayedEventData.startTimeUtc,
-                    )}
-                    initialEndTime={formatTime(displayedEventData.endTimeUtc)}
+                    initialStart={displayedEventData.startTimeUtc}
+                    initialEnd={displayedEventData.endTimeUtc}
                     initialAllDay={displayedEventData.allDay}
                     initialRecurring={displayedEventData.recurring}
                     initialRecurrenceEnd={formatDate(
@@ -383,15 +367,13 @@ const App = () => {
                   <EventForm
                     initialTitle=""
                     initialDescription=""
-                    initialStartDate={modalStartDate}
-                    initialEndDate={modalEndDate}
-                    initialStartTime={modalStartTime}
-                    initialEndTime={modalEndTime}
+                    initialStart={modalStart}
+                    initialEnd={modalEnd}
                     initialAllDay={modalAllDay}
                     initialRecurring={false}
-                    initialRecurrenceEnd={formatDate(
-                      oneYearLater(modalStartDate),
-                    )}
+                    initialRecurrenceEnd={oneYearLater(
+                      modalStart,
+                    ).toISOString()}
                     onFormSubmit={handleCreateEntry}
                     isCreate={true}
                   />
